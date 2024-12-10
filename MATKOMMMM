@@ -1,0 +1,121 @@
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox
+import pandas as pd
+
+# Inisialisasi data global
+color_data = None  # Variabel untuk menampung datasets
+
+# Fungsi untuk memuat file CSV
+def load_file():
+    file_path = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
+    if file_path:
+        try:
+            global color_data
+            color_data = pd.read_csv(file_path)
+            
+            # Gunakan kolom 'Name' dan 'Hex (24 bit)' dari dataset
+            color_data = color_data.rename(columns={"Hex (24 bit)": "Code"})
+            color_data = color_data[["Name", "Code"]]
+            
+            # Pastikan file memiliki kolom 'Name' dan 'Code'
+            if "Name" in color_data.columns and "Code" in color_data.columns:
+                lbl_status.config(text="Status: File berhasil dimuat", foreground="green")
+                btn_convert.config(state=tk.NORMAL)
+            else:
+                lbl_status.config(text="Status: Gagal memuat file", foreground="red")
+                color_data = None
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Gagal memuat file: {e}")
+            lbl_status.config(text="Status: Gagal memuat file", foreground="red")
+            btn_convert.config(state=tk.DISABLED)
+
+# Fungsi untuk mengonversi input ke warna
+def convert():
+    try:
+        input_value = entry_number.get().strip()
+        base = combo_base.get()
+
+        # Konversi input ke nilai integer berdasarkan basis
+        if base == "Decimal":
+            value = int(input_value, 10)
+        elif base == "Binary":
+            value = int(input_value, 2)
+        elif base == "Octal":
+            value = int(input_value, 8)
+        else:
+            raise ValueError("Basis tidak valid")
+
+        # Ambil 3 byte terakhir untuk RGB
+        r = (value >> 16) & 0xFF
+        g = (value >> 8) & 0xFF
+        b = value & 0xFF
+
+        # Konversi ke kode HEX
+        hex_color = f"#{r:02x}{g:02x}{b:02x}".upper()
+
+        # Cocokkan dengan dataset
+        if color_data is not None and not color_data.empty:
+            matched = color_data[color_data["Code"].str.upper() == hex_color]
+            if not matched.empty:
+                color_name = matched.iloc[0]["Name"]
+                lbl_result.config(text=f"Warna: {color_name} ({hex_color})", bg=hex_color)
+            else:
+                lbl_result.config(text=f"Warna tidak ditemukan di dataset ({hex_color})", bg=hex_color)
+        else:
+            lbl_result.config(text=f"Kode HEX: {hex_color}", bg=hex_color)
+
+    except ValueError:
+        messagebox.showerror("Error", "Masukkan angka yang valid sesuai dengan basis yang dipilih!")
+        lbl_result.config(text="Kesalahan input!", bg="white")
+    except Exception as e:
+        messagebox.showerror("Error", f"Terjadi kesalahan: {e}")
+        lbl_result.config(text="Terjadi kesalahan!", bg="white")
+
+# GUI Utama
+root = tk.Tk()
+root.title("Konversi Sistem Bilangan ke Warna")
+root.geometry("600x400")
+root.resizable(True, True)
+
+# Header
+header_frame = ttk.Frame(root)
+header_frame.pack(pady=10)
+ttk.Label(header_frame, text="Konversi Sistem Bilangan ke Warna", font=("Arial", 16, "bold")).pack()
+
+# Tombol untuk memuat file
+btn_load = ttk.Button(root, text="Muat File CSV", command=load_file)
+btn_load.pack(pady=10)
+
+# Status File
+lbl_status = ttk.Label(root, text="Status: Belum ada file yang dimuat", foreground="red")
+lbl_status.pack()
+
+# Input angka
+frame_input = ttk.Frame(root)
+frame_input.pack(pady=20)
+ttk.Label(frame_input, text="Masukkan Angka:").grid(row=0, column=0, padx=5, pady=5, sticky="e")
+entry_number = ttk.Entry(frame_input, width=25)
+entry_number.grid(row=0, column=1, padx=5, pady=5)
+
+# Pilihan basis sistem bilangan
+ttk.Label(frame_input, text="Basis:").grid(row=1, column=0, padx=5, pady=5, sticky="e")
+combo_base = ttk.Combobox(frame_input, values=["Decimal", "Binary", "Octal"], state="readonly", width=22)
+combo_base.grid(row=1, column=1, padx=5, pady=5)
+combo_base.current(0)
+
+# Tombol konversi
+btn_convert = ttk.Button(root, text="Konversi", command=convert, state=tk.DISABLED)
+btn_convert.pack(pady=20)
+
+# Label hasil
+lbl_result = tk.Label(root, text="Hasil akan ditampilkan di sini", bg="white", width=50, height=3, relief="solid")
+lbl_result.pack(pady=10)
+
+# Footer
+footer_frame = ttk.Frame(root)
+footer_frame.pack(pady=10)
+ttk.Label(footer_frame, text="Dikembangkan dengan Python dan Tkinter", font=("Arial", 10)).pack()
+
+# Jalankan GUI
+root.mainloop()
